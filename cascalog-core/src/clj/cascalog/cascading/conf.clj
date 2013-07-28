@@ -1,9 +1,11 @@
 (ns cascalog.cascading.conf
   (:require [clojure.string :as s]
-            [clojure.java.io :refer (resource)]
+            [clojure.java.io :as io]
             [jackknife.core :as u]
             [jackknife.seq :refer (merge-to-vec collectify)])
-  (:import [cascading.flow FlowProps]))
+  (:import [cascading.flow FlowProps]
+           [cascading.property AppProps]
+           [java.util Properties]))
 
 (def default-serializations
   ["org.apache.hadoop.io.serializer.WritableSerialization"
@@ -70,7 +72,7 @@
          (u/throw-runtime "Error reading job-conf.clj!\n\n" e))))
 
 (defn project-settings []
-  (if-let [conf-path (resource "job-conf.clj")]
+  (if-let [conf-path (io/resource "job-conf.clj")]
     (let [conf (-> conf-path slurp read-settings project-merge)]
       (u/safe-assert (map? conf)
                      "job-conf.clj must end with a map of config parameters.")
@@ -91,6 +93,22 @@
 (defn set-job-conf! [amap]
   (alter-var-root #'*JOB-CONF*
                   (constantly (into {} amap))))
+
+(defn get-version [dep]
+  ;; read the project version from the pom.properties file in the jar
+  (let [path (str "META-INF/maven/" (name dep) "/pom.properties")
+        props (io/resource path)]
+    (when props
+      (with-open [stream (io/input-stream props)]
+        (let [props (doto (Properties.) (.load stream))]
+          (.getProperty props "version"))))))
+
+;; being a good citizen in the cascading ecosystem and set the
+;; framework property
+(comment
+  "TODO: Fix this once I get building again on Cascading 2.2."
+  (System/setProperty AppProps/APP_FRAMEWORKS
+                      (str "cascalog:" (get-version "cascalog/cascalog-core"))))
 
 (defmacro with-job-conf
   "Modifies the job conf for queries executed within the form. Nested
