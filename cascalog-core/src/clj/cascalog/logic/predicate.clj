@@ -125,6 +125,7 @@
   [gen input output]
   {:pre [(types/generator? gen) (empty? input)]}
   (->Generator (-> (types/generator gen)
+                   (ops/rename-pipe)
                    (ops/rename* output)
                    (ops/filter-nullable-vars output))
                output))

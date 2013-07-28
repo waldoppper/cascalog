@@ -800,6 +800,21 @@
              ((select-fields data ["f1" "f3" "f4"]) ?f1 ?f2 ?f3))))
 
 
+(deftest memory-self-join-test
+  (let [src  [["a"]]
+        src2 (memory-source-tap [["a"]])]
+    (with-expected-sink-sets [empty1 [], empty2 []]
+      (test?<- src
+               [!a]
+               (src !a)
+               (src !a)
+               (:trap empty1))
+
+      (test?<- src
+               [!a]
+               (src2 !a)
+               (src2 !a)
+               (:trap empty2)))))
 (comment
   (deftest test-sample-count
     (let [numbers [[1] [2] [3] [4] [5] [6] [7] [8] [9] [10]]
@@ -817,27 +832,9 @@
       (fact?- "sample should contain some of the inputs"
               (contains #{[1 2] [3 4] [5 6]} :gaps-ok) sampling-query)))
 
-  (deftest memory-self-join-test
-    (let [src  [["a"]]
-          src2 (memory-source-tap [["a"]])]
-      (with-expected-sink-sets [empty1 [], empty2 []]
-        (test?<- src
-                 [!a]
-                 (src !a)
-                 (src !a)
-                 (:distinct false)
-                 (:trap empty1))
-
-        (test?<- src
-                 [!a]
-                 (src2 !a)
-                 (src2 !a)
-                 (:distinct false)
-                 (:trap empty2)))))
-
   (deftest test-trap
     (let [num [[1] [2]]]
-      (with-expected-sink-sets [trap1 [[1]] ]
+      (with-expected-sink-sets [trap1 [[1]]]
         (test?<- [[2]]
                  [?n]
                  (num ?n)

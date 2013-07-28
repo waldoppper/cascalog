@@ -9,7 +9,8 @@
   (plus [l r] r)
 
   String
-  (plus [l r] (prn l r) (str l r))
+  (plus [l r]
+    (str l r))
 
   clojure.lang.IPersistentVector
   (plus [l r] (concat l r))

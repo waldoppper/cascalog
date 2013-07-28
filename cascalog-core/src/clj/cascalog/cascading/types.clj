@@ -75,7 +75,7 @@
 
   Tap
   (generator [tap]
-    (let [id (.getIdentifier tap)]
+    (let [id (u/uuid)]
       (map->ClojureFlow {:source-map {id tap}
                          :pipe (Pipe. id)}))))
 
