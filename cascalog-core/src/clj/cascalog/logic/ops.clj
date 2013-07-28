@@ -1,11 +1,10 @@
 (ns cascalog.logic.ops
   (:refer-clojure :exclude [count min max comp juxt partial])
   (:use cascalog.api
-        [jackknife.def :only (defnk)]
-        [jackknife.seq :only (collectify)]
-        [cascalog.cascading.tap :only (fill-tap!)]
-        [cascalog.cascading.io :only (with-fs-tmp)])
-  (:require [cascalog.logic.def :as d]
+        [jackknife.def :only (defnk defalias)]
+        [jackknife.seq :only (collectify)])
+  (:require [cascalog.cascading.operations :as operations]
+            [cascalog.logic.def :as d]
             [cascalog.logic.fn :as s]
             [cascalog.logic.ops-impl :as impl]
             [cascalog.logic.vars :as v]))
@@ -196,6 +195,8 @@
         (map (partial apply concat) alist)))))
 
 ;; Special node. The operation inside of here will be passed the
+;; option map for that section of the job.
+
 (defn limit [n]
   (d/->Prepared (fn [options]
                   (d/->ParallelAggregator
@@ -252,27 +253,8 @@
 
 ;; Common patterns
 
-(defn lazy-generator
-    "Returns a cascalog generator on the supplied sequence of
-  tuples. `lazy-generator` serializes each item in the lazy sequence
-  into a sequencefile located at the supplied temporary directory and returns
-  a tap for the data in that directory.
-
-  It's recommended to wrap queries that use this tap with
-  `cascalog.cascading.io/with-fs-tmp`; for example,
-
-    (with-fs-tmp [_ tmp-dir]
-      (let [lazy-tap (lazy-generator tmp-dir lazy-seq)]
-        (?<- (stdout)
-             [?field1 ?field2 ... etc]
-             (lazy-tap ?field1 ?field2)
-             ...)))"
-    [tmp-path [tuple :as l-seq]]
-    {:pre [(coll? tuple)]}
-    (let [tap (:sink (hfs-seqfile tmp-path))
-          n-fields (clojure.core/count tuple)]
-      (fill-tap! tap l-seq)
-      (name-vars tap (v/gen-nullable-vars n-fields))))
+;; TODO: Get this out into the proper Cascading package.
+(defalias lazy-generator operations/lazy-generator)
 
 (defnk first-n
   "Accepts a generator and a number `n` and returns a subquery that

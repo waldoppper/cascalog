@@ -1,13 +1,10 @@
 (ns cascalog.logic.predicate
-  "TODO: We need to remove all of the Cascading implementations from
-   here. The extensions to to-predicate."
   (:require [clojure.string :refer (join)]
             [jackknife.core :as u]
             [cascalog.logic.vars :as v]
             [cascalog.logic.def :as d]
             [cascalog.logic.fn :refer (search-for-var)]
-            [cascalog.cascading.operations :as ops]
-            [cascalog.cascading.types :as types])
+            [cascalog.logic.platform :as p])
   (:import [clojure.lang IFn]
            [cascalog.logic.def ParallelAggregator Prepared]
            [jcascalog Subquery ClojureOp]
@@ -104,7 +101,7 @@
                       (merge m#))))))))
 
 ;; Leaves of the tree:
-(defnode Generator [gen fields options])
+(defnode Generator [gen fields])
 
 ;; GeneratorSets can't be unground, ever.
 (defrecord GeneratorSet [generator join-set-var])
@@ -118,19 +115,9 @@
 
 (def can-generate?
   (some-fn node?
-           types/generator?
+           (partial p/generator? p/*context*)
            #(instance? GeneratorSet %)))
 
-(defn init-pipe-name [options]
-  (or (:name (:trap options))
-      (u/uuid)))
-
-(defn- init-trap-map [options]
-  (if-let [trap (:trap options)]
-    {(:name trap) (types/to-sink (:tap trap))}
-    {}))
-
-;; TODO: Move this into a Cascading execution context.
 (defn generator-node
   "Converts the supplied generator into the proper type of node."
   [gen input output options]
@@ -138,16 +125,11 @@
   {:pre [(empty? input)]}
   (if (instance? GeneratorSet gen)
     (let [{:keys [generator] :as op} gen]
-      (assert ((some-fn node? types/generator?) generator)
+      (assert ((some-fn node? (partial p/generator? p/*context*)) generator)
               (str "Only Nodes or Generators allowed: " generator))
       (assoc op :generator (generator-node generator input output options)))
-    (->Generator (-> (types/generator gen)
-                     (update-in [:trap-map] #(merge % (init-trap-map options)))
-                     (ops/rename-pipe (init-pipe-name options))
-                     (ops/rename* output)
-                     (ops/filter-nullable-vars output))
-                 output
-                 options)))
+    (->Generator (p/generator p/*context* gen output options)
+                 output)))
 
 ;; The following multimethod converts operations (in the first
 ;; position of a parsed cascalog predicate) to nodes in the graph.
@@ -193,8 +175,7 @@
   (->Operation op input output))
 
 ;; ## Aggregators
-;;
-;; TODO: Get these impls out and back into the cascading executor.
+
 (defmethod to-predicate ::d/buffer
   [op input output]
   (->Aggregator op input output))
@@ -229,7 +210,7 @@
   "Accepts an option map and a raw predicate and returns a node in the
   Cascalog graph."
   [options {:keys [op input output] :as pred}]
-  (cond (or (types/generator? op)
+  (cond (or (p/gen? op)
             (instance? GeneratorSet op))
         (generator-node op input output options)
 
@@ -238,14 +219,3 @@
                          (assoc pred :op ((:op op) options)))
 
         :else (to-predicate op input output)))
-
-(comment
-  (require '[cascalog.cascading.flow :as f])
-  "TODO: Convert to test."
-  (let [gen (-> (types/generator [1 2 3 4])
-                (ops/rename* "?x"))
-        pred (to-predicate * ["?a" "?a"] ["?b"])]
-    (fact
-      (f/to-memory
-       ((:op pred) gen ["?x" "?x"] "?z"))
-      => [[1 1] [2 4] [3 9] [4 16]])))

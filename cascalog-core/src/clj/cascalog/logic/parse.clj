@@ -11,8 +11,8 @@
             [cascalog.logic.zip :as zip]
             [cascalog.logic.predicate :as p]
             [cascalog.logic.predmacro :as pm]
-            [cascalog.logic.options :as opts]
-            [cascalog.cascading.types :refer (generator?)])
+            [cascalog.logic.platform :as platform]
+            [cascalog.logic.options :as opts])
   (:import [jcascalog Predicate PredicateMacro PredicateMacroTemplate]
            [cascalog.logic.predicate Operation FilterOperation Aggregator
             Generator GeneratorSet RawPredicate]
@@ -157,7 +157,7 @@
 (defn validate-predicates! [preds opts]
   (let [grouped (group-by (fn [x]
                             (condp #(%1 %2) (:op x)
-                              generator? :gens
+                              platform/gen? :gens
                               bufferop? :buffers
                               aggregateop? :aggs
                               :ops))
@@ -690,7 +690,8 @@
   (let [output-fields (v/sanitize output-fields)
         raw-predicates (mapcat p/normalize raw-predicates)]
     (if (query-signature? output-fields)
-      (p/->RawSubquery output-fields raw-predicates)
+      (build-rule
+       (p/->RawSubquery output-fields raw-predicates))
       (let [parsed (parse-variables output-fields :<)]
         (pm/build-predmacro (:input parsed)
                             (:output parsed)
