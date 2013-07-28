@@ -1,7 +1,8 @@
 (ns cascalog.cascading.tap-test
-  (:use [midje sweet]
+  (:use [midje sweet cascalog]
         clojure.test
-        cascalog.logic.testing)
+        cascalog.logic.testing
+        cascalog.api)
   (:require [cascalog.cascading.io :as io]
             [cascalog.cascading.tap :as tap]
             [cascalog.cascading.util :refer (fields)])
@@ -81,17 +82,16 @@
     ":sink-template option should set path template on cascading tap."
     (.getPathTemplate (hfs-test-sink :sink-template "%s/")) => "%s/"))
 
-(comment
-  (deftest template-tap-test
-    (fact
-      "Test executing tuples into a template tap and sourcing them back
+(deftest template-tap-test
+  (fact
+    "Test executing tuples into a template tap and sourcing them back
     out with a source pattern."
-      (io/with-log-level :fatal
-        (io/with-fs-tmp [_ tmp]
-          (let [tuples [[1 2] [2 3] [4 5]]
-                temp-tap (tap/hfs-seqfile (str tmp "/")
-                                          :sink-template "%s/"
-                                          :source-pattern "{1,2}/*")]
-            temp-tap
-            (api/?<- temp-tap [?a ?b] (tuples ?a ?b))
-            temp-tap => (produces [[1 2] [2 3]])))))))
+    (io/with-log-level :fatal
+      (io/with-fs-tmp [_ tmp]
+        (let [tuples [[1 2] [2 3] [4 5]]
+              temp-tap (tap/hfs-seqfile (str tmp "/")
+                                        :sink-template "%s/"
+                                        :source-pattern "{1,2}/*")]
+          temp-tap
+          (?<- temp-tap [?a ?b] (tuples ?a ?b))
+          temp-tap => (produces [[1 2] [2 3]]))))))

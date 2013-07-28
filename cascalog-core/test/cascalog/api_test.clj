@@ -480,9 +480,9 @@
                ["b" 2]]
         right [["b"]]]
     (future-fact "Join negation"
-      (<- [?x ?y]
-          (left ?x ?y)
-          (right ?x :> false)) => (produces [["a" 1]]))))
+                 (<- [?x ?y]
+                     (left ?x ?y)
+                     (right ?x :> false)) => (produces [["a" 1]]))))
 
 (defbufferiterop itersum [tuples-iter]
   [(->> (iterator-seq tuples-iter)
@@ -627,31 +627,31 @@
                ((CountAgg.) ?count)
                ((SumAgg.) ?val :> ?sum)))))
 
-(comment
-  "TODO: These need union and combine to do proper renames."
-  (defn run-union-combine-tests
-    "Runs a series of tests on the union and combine operations. v1,
+"TODO: These need union and combine to do proper renames."
+(defn run-union-combine-tests
+  "Runs a series of tests on the union and combine operations. v1,
   v2 and v3 must produce
 
     [[1] [2] [3]]
     [[3] [4] [5]]
     [[2] [4] [6]]"
-    [v1 v2 v3]
-    (test?- [[1] [2] [3] [4] [5]]                 (union v1 v2)
-            [[1] [2] [3] [4] [5] [6]]             (union v1 v2 v3)
-            [[3] [4] [5]]                         (union v2)
-            [[1] [2] [3] [2] [4] [6]]             (combine v1 v3)
-            [[1] [2] [3] [3] [4] [5] [2] [4] [6]] (combine v1 v2 v3)))
+  [v1 v2 v3]
+  (test?- :info [[1] [2] [3] [4] [5]]                 (union v1 v2)
+          [[1] [2] [3] [4] [5] [6]]             (union v1 v2 v3)
+          [[3] [4] [5]]                         (union v2)
+          [[1] [2] [3] [2] [4] [6]]             (combine v1 v3)
+          [[1] [2] [3] [3] [4] [5] [2] [4] [6]] (combine v1 v2 v3)))
 
+(comment
   (deftest test-vector-union-combine
     (run-union-combine-tests [[1] [2] [3]]
                              [[3] [4] [5]]
                              [[2] [4] [6]]))
 
   (deftest test-query-union-combine
-    (run-union-combine-tests (<- [?v] ([[1] [2] [3]] ?v) (:distinct false))
-                             (<- [?v] ([[3] [4] [5]] ?v) (:distinct false))
-                             (<- [?v] ([[2] [4] [6]] ?v) (:distinct false))))
+    (run-union-combine-tests (<- [?v] ([[1] [2] [3]] ?v))
+                             (<- [?v] ([[3] [4] [5]] ?v))
+                             (<- [?v] ([[2] [4] [6]] ?v))))
 
   (deftest test-cascading-union-combine
     (let [v1 [[1] [2] [3]]
@@ -799,7 +799,6 @@
              [?f1 ?f2 ?f3]
              ((select-fields data ["f1" "f3" "f4"]) ?f1 ?f2 ?f3))))
 
-
 (deftest memory-self-join-test
   (let [src  [["a"]]
         src2 (memory-source-tap [["a"]])]
@@ -883,84 +882,84 @@
         (test?<- [[2]]
                  [?n]
                  (sq ?n))))))
-(comment
-  (deftest test-sample-count
-    "sample should return a number of samples equal to the specified
+
+(deftest test-limit
+  (let [pair [["a" 1] ["a" 3] ["a" 2]
+              ["a" 4] ["b" 1] ["b" 6]
+              ["b" 7] ["c" 0]]]
+    (test?<- [[0] [1] [1] [2]
+              [3] [4] [6] [7]]
+             [?n2]
+             (pair _ ?n)
+             (:sort ?n)
+             (nothing-buf ?n :> ?n2))
+
+    (test?<- [[0] [1]]
+             [?n2]
+             (pair _ ?n)
+             (:sort ?n)
+             ((c/limit 2) ?n :> ?n2))
+
+    (test?<- [[1 1] [2 2] [3 3]
+              [4 4] [1 5]]
+             [?n2 ?r]
+             (pair ?l ?n)
+             (:sort ?l ?n)
+             ((c/limit-rank 5) ?n :> ?n2 ?r))
+
+    (test?<- [["c" 0] ["b" 7]]
+             [?l2 ?n2]
+             (pair ?l ?n)
+             (:sort ?l ?n)
+             (:reverse true)
+             ((c/limit 2) ?l ?n :> ?l2 ?n2))
+
+    (test?<- [[0] [1] [1]]
+             [?n2]
+             (pair _ ?n)
+             (:sort ?n)
+             ((c/limit 3) ?n :> ?n2))
+
+    (test?<- [[0 1] [1 2] [1 3]]
+             [?n2 ?r]
+             (pair _ ?n)
+             (:sort ?n)
+             ((c/limit-rank 3) ?n :> ?n2 ?r))
+
+    (test?<- [[6] [7]]
+             [?n2]
+             (pair _ ?n)
+             (:sort ?n)
+             (:reverse true)
+             ((c/limit 2) ?n :> ?n2))
+
+    (test?<- [[6 2] [7 1]]
+             [?n2 ?r]
+             (pair _ ?n)
+             (:sort ?n)
+             (:reverse true)
+             ((c/limit-rank 2) ?n :> ?n2 ?r))
+
+    (test?<- [["a" 1] ["a" 2] ["b" 1]
+              ["b" 6] ["c" 0]]
+             [?l ?n2]
+             (pair ?l ?n)
+             (:sort ?n)
+             ((c/limit 2) ?n :> ?n2))))
+
+(deftest test-sample-count
+  "sample should return a number of samples equal to the specified
      sample size param"
-    (let [numbers [[1] [2] [3] [4] [5] [6] [7] [8] [9] [10]]
-          sampling-query (c/fixed-sample numbers 5)]
-      (test?<- [[5]]
-               [?count]
-               (sampling-query ?s)
-               (c/count ?count))))
+  (let [numbers [[1] [2] [3] [4] [5] [6] [7] [8] [9] [10]]
+        sampling-query (c/fixed-sample numbers 5)]
+    (test?<- [[5]]
+             [?count]
+             (sampling-query ?s)
+             (c/count ?count))))
 
-  (deftest test-sample-contents
-    (let [numbers [[1 2] [3 4] [5 6] [7 8] [9 10]]
-          sampling-query (c/fixed-sample numbers 5)]
-      (fact?- "sample should contain some of the inputs"
-              (contains #{[1 2] [3 4] [5 6]} :gaps-ok)
-              sampling-query)))
-
-  (deftest test-limit
-    (let [pair [["a" 1] ["a" 3] ["a" 2]
-                ["a" 4] ["b" 1] ["b" 6]
-                ["b" 7] ["c" 0]]]
-      (test?<- [[0] [1] [1] [2]
-                [3] [4] [6] [7]]
-               [?n2]
-               (pair _ ?n)
-               (:sort ?n)
-               (nothing-buf ?n :> ?n2))
-
-      (test?<- [[0] [1]]
-               [?n2]
-               (pair _ ?n)
-               (:sort ?n)
-               (c/limit [2] ?n :> ?n2))
-
-      (test?<- [[1 1] [2 2] [3 3]
-                [4 4] [1 5]]
-               [?n2 ?r]
-               (pair ?l ?n)
-               (:sort ?l ?n)
-               (c/limit-rank [5] ?n :> ?n2 ?r))
-
-      (test?<- [["c" 0] ["b" 7]]
-               [?l2 ?n2]
-               (pair ?l ?n)
-               (:sort ?l ?n)
-               (:reverse true)
-               (c/limit [2] ?l ?n :> ?l2 ?n2))
-
-      (test?<- [[0] [1] [1]]
-               [?n2]
-               (pair _ ?n)
-               (:sort ?n)
-               (c/limit [3] ?n :> ?n2))
-
-      (test?<- [[0 1] [1 2] [1 3]]
-               [?n2 ?r]
-               (pair _ ?n)
-               (:sort ?n)
-               (c/limit-rank [3] ?n :> ?n2 ?r))
-
-      (test?<- [[6] [7]]
-               [?n2]
-               (pair _ ?n)
-               (:sort ?n)
-               (:reverse true)
-               (c/limit [2] ?n :> ?n2))
-
-      (test?<- [[6 2] [7 1]]
-               [?n2 ?r]
-               (pair _ ?n)
-               (:sort ?n)
-               (:reverse true)
-               (c/limit-rank [2] ?n :> ?n2 ?r))
-
-      (test?<- [["a" 1] ["a" 2] ["b" 1]
-                ["b" 6] ["c" 0]]
-               [?l ?n2]
-               (pair ?l ?n)
-               (:sort ?n)
-               (c/limit [2] ?n :> ?n2)))))
+(deftest test-sample-contents
+  (let [numbers [[1 2] [3 4] [5 6] [7 8] [9 10]]
+        sampling-query (c/fixed-sample numbers 5)]
+    (fact?- "sample should contain some of the inputs"
+            (contains #{[1 2] [3 4] [5 6]} :gaps-ok)
+            sampling-query)))

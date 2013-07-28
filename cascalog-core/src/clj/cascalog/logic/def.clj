@@ -114,7 +114,7 @@
   `bufferiterfn)
 
 (comment
-  "REMAINING MACROS"
+  "TODO: REMAINING MACROS"
   (defmacro defmultibufferop [name & body] (defhelper name `multibufferop body)))
 
 ;; ## Deprecated Old Timers
@@ -136,9 +136,28 @@
 
 (defrecord ParallelAggregator [init-var combine-var present-var])
 
+(defrecord ParallelBuffer
+    [init-var
+     combine-var
+     present-var
+     num-intermediate-vars-fn
+     buffer-var])
+
 ;; Special node. The operation inside of here will be passed the
 ;; Cascalog option map and expected to return another operation.
 (defrecord Prepared [op])
+
+(defmacro defparallelbuf
+  {:arglists '([name doc-string? attr-map?
+                & {:keys [init-var
+                          combine-var
+                          extract-var
+                          num-intermediate-vars-fn
+                          buffer-var]}])}
+  [name & body]
+  (let [[name body] (name-with-attributes name body)]
+    `(def ~name
+       (map->ParallelBuffer (hash-map ~@body)))))
 
 (defmacro defparallelagg
   "Binds an efficient aggregator to the supplied symbol. A parallel

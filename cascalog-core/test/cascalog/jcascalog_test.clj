@@ -1,12 +1,13 @@
-(comment
-  (ns cascalog.jcascalog-test
+(ns cascalog.jcascalog-test
     (:use clojure.test
-          [cascalog api testing])
+          cascalog.api
+          cascalog.logic.testing)
     (:import [cascalog.test MultiplyAgg RangeOp DoubleOp]
              [jcascalog Api Option Predicate PredicateMacroTemplate
               PredicateMacro Subquery Api$FirstNArgs]
              [jcascalog.op Avg Count Div Limit Sum Plus Multiply Equals]))
 
+(comment
   (deftest test-vanilla
     (let [value [["a" 1] ["a" 2] ["b" 10]
                  ["c" 3] ["b" 2] ["a" 6]]]
@@ -51,15 +52,13 @@
       (test?- [[3]]
               (-> (Subquery. ["?avg"])
                   (.predicate nums ["?v"])
-                  (.predicate my-avg ["?v"]) (.out ["?avg"])
-                  ))))
+                  (.predicate my-avg ["?v"]) (.out ["?avg"])))))
 
   (def my-avg-template
     (-> (PredicateMacroTemplate/build ["?v"]) (.out ["?avg"])
         (.predicate (Count.) ["?count"])
         (.predicate (Sum.) ["?v"]) (.out ["?sum"])
-        (.predicate (Div.) ["?sum" "?count"]) (.out ["?avg"])
-        ))
+        (.predicate (Div.) ["?sum" "?count"]) (.out ["?avg"])))
 
   (deftest test-java-predicate-macro-template
     (let [nums [[1] [2] [3] [4] [5]]]
@@ -67,8 +66,7 @@
               (-> (Subquery. ["?avg"])
                   ;; use ?sum name here to try to confuse it (test that it renames intermediate vars)
                   (.predicate nums ["?sum"])
-                  (.predicate my-avg-template ["?sum"]) (.out ["?avg"])
-                  ))))
+                  (.predicate my-avg-template ["?sum"]) (.out ["?avg"])))))
 
   (deftest test-first-n
     (let [data [["a" 1] ["a" 1] ["b" 1] ["c" 1] ["c" 1] ["a" 1]
@@ -86,6 +84,5 @@
       (test?- [[2 4 6] [8 10 12]]
               (-> (Subquery. ["?x" "?y" "?z"])
                   (.predicate data ["?a" "?b" "?c"])
-                  (.predicate (Api/each (DoubleOp.)) ["?a" "?b" "?c"]) (.out ["?x" "?y" "?z"])
-                  ))))
-  )
+                  (.predicate (Api/each (DoubleOp.))
+                              ["?a" "?b" "?c"]) (.out ["?x" "?y" "?z"]))))))

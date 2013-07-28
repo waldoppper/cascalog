@@ -6,7 +6,8 @@
             [cascalog.logic.fn :refer (search-for-var)]
             [cascalog.logic.platform :as p])
   (:import [clojure.lang IFn]
-           [cascalog.logic.def ParallelAggregator Prepared]
+           [cascalog.logic.def ParallelAggregator
+            ParallelBuffer Prepared]
            [jcascalog Subquery ClojureOp]
            [cascalog CascalogFunction CascalogBuffer CascalogAggregator ParallelAgg]))
 
@@ -193,6 +194,10 @@
   (->Aggregator op input output))
 
 (defmethod to-predicate ParallelAggregator
+  [op input output]
+  (->Aggregator op input output))
+
+(defmethod to-predicate ParallelBuffer
   [op input output]
   (->Aggregator op input output))
 

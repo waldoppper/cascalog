@@ -176,6 +176,7 @@
   (not (some v/selector? vars)))
 
 (comment
+  "TODO: Make a test."
   (v/with-logic-vars
     (parse-subquery [?x ?y ?z]
                     [[[[1 2 3]] ?x]

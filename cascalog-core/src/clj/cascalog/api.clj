@@ -86,7 +86,11 @@
 
   Tap
   (num-out-fields [x]
-    (count (get-out-fields x))))
+    (count (get-out-fields x)))
+
+  TailStruct
+  (num-out-fields [x]
+    (count (:available-fields x))))
 
 ;; ## Knobs for Hadoop
 

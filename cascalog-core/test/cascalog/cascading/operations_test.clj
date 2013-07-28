@@ -6,6 +6,7 @@
         cascalog.cascading.tap
         cascalog.cascading.util)
   (:require [cascalog.cascading.io :as io]
+            [cascalog.logic.fn :as serfn]
             [cascalog.cascading.types :refer (generator)]
             [cascalog.logic.algebra :as algebra]))
 
@@ -41,6 +42,20 @@
       => (produces [["jenna" 10 100]
                     ["sam" 2 4]
                     ["oscar" 3 9]]))))
+
+(deftest inner-join-test
+  (let [source (-> (generator [[1 2] [2 3] [3 4] [4 5]]))
+        a      (-> source
+                   (rename* ["a" "b"])
+                   (filter* (serfn/fn [x] (> x 2)) "a")
+                   (map* square "b" "c"))
+        b      (-> source
+                   (rename* ["a" "b"]))]
+    (fact
+      (cascalog-join [(->Inner a ["a" "b" "c"])
+                      (->Inner b ["a" "b"])]
+                     ["a" "b"])
+      => (produces [[3 4 16] [4 5 25]]))))
 
 (future-fact
  "Check that intermediates actually write out to their sequencefiles.")
@@ -119,7 +134,7 @@
       (fact "Agg after join"
         q => (produces [[1 1 20] [2 2 15]])))))
 
-(comment
+(deftest join-many-test
   (let [source (-> (generator [[1 1] [2 2] [3 3] [4 4]]))
         a      (-> source
                    (rename* ["a" "b"])
@@ -130,7 +145,7 @@
     (fact "join many..."
       (-> (join-many [[a ["a"] :inner]
                       [b ["x"] :inner]]
-                     ["a" "b" "y" "x" "c"]
-                     [])
+                     ["a" "b" "y" "x" "c"])
           (map* str "y" "q"))
-      => (produces []))))
+      => (produces [[3 3 9 3 3 "9"]
+                    [4 4 16 4 4 "16"]]))))

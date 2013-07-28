@@ -59,6 +59,7 @@
           (recur visited (my-next loc)))))))
 
 (comment
+  "Example of how zippers can be used to walk a map:"
   (extend-protocol TreeNode
     clojure.lang.IPersistentMap
     (branch? [node] true)

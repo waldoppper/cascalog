@@ -169,19 +169,23 @@
 
 (def !count (each impl/!count-parallel))
 
-(defn limit-init [item] [[item]])
+(defn limit-init [sort-tuple & tuple]
+  ;; this is b/c CombinerBase does coerceToSeq on everything and
+  ;; applies when combining, since this returns a seq we need an
+  ;; extra level of nesting should have a different combiner base
+  ;; for buffer combiners
+  [[[(vec sort-tuple) (vec tuple)]]])
 
-(defn mk-limit-comparator [opts]
+(defn- mk-limit-comparator [options]
   (s/fn [[^Comparable o1 _] [^Comparable o2 _]]
-    (if (:sort opts)
-      (* (.compareTo o1 o2) (if (:reverse opts) -1 1))
+    (if (:sort options)
+      (* (.compareTo o1 o2) (if (boolean (:reverse options)) -1 1))
       0)))
 
 (defn limit-combine [options n]
   (let [compare-fn (mk-limit-comparator options)]
     (s/fn [list1 list2]
       (let [res (concat list1 list2)]
-        ;; see note in limit-init
         [(if (> (clojure.core/count res) (* 2 n))
            (take n (sort compare-fn res))
            res)]))))
@@ -192,21 +196,34 @@
       (let [alist (if (<= (clojure.core/count alist) n)
                     alist
                     (take n (sort compare-fn alist)))]
-        (map (partial apply concat) alist)))))
+        (map (clojure.core/partial apply concat) alist)))))
 
 ;; Special node. The operation inside of here will be passed the
 ;; option map for that section of the job.
 
-(defn limit [n]
-  (d/->Prepared (fn [options]
-                  (d/->ParallelAggregator
-                   #'limit-init
-                   (limit-combine options n)
-                   (limit-extract options n)))))
+(defn limit-buffer [n]
+  (s/fn [tuples]
+    (take n tuples)))
 
-(comment
-  (def limit-rank
-    (merge limit {:buffer-hof-var #'impl/limit-rank-buffer})))
+(defn limit-rank-buffer [n]
+  (s/fn [tuples]
+    (take n (map #(conj (vec %1) %2) tuples (iterate inc 1)))))
+
+(defn- limit-maker [n buffer-fn]
+  (d/->Prepared
+   (fn [options]
+     (d/->ParallelBuffer #'limit-init
+                         (limit-combine options n)
+                         (limit-extract options n)
+                         (fn [infields outfields]
+                           (clojure.core/count infields))
+                         buffer-fn))))
+
+(defn limit [n]
+  (limit-maker n (limit-buffer n)))
+
+(defn limit-rank [n]
+  (limit-maker n (limit-rank-buffer n)))
 
 (def avg
   "Predicate operation that produces the average value of the

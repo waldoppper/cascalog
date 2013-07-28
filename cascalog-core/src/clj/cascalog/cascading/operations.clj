@@ -494,20 +494,6 @@
         (select* to-keep)
         (rename-pipe final-name))))
 
-(comment
-  (defn square [x] (* x x))
-  (let [source (-> (generator [[1 2] [2 3] [3 4] [4 5]]))
-        a      (-> source
-                   (rename* ["a" "b"])
-                   (filter* (serfn/fn [x] (> x 2)) "a")
-                   (map* square "b" "c"))
-        b      (-> source
-                   (rename* ["a" "b"]))]
-    (-> (cascalog-join [(->Inner a ["a" "b" "c"])
-                        (->Inner b ["a" "b"])]
-                       ["a" "b"])
-        cascalog.cascading.flow/to-memory)))
-
 ;; ## MultiGroup
 ;;
 ;; TODO: Get this thing working.

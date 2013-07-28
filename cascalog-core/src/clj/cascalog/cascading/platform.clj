@@ -9,11 +9,14 @@
             [cascalog.logic.parse :as parse]
             [cascalog.logic.algebra :refer (sum)]
             [cascalog.logic.zip :as zip]
+            [cascalog.logic.vars :as v]
             [cascalog.logic.parse :as parse]
             [cascalog.cascading.types :refer (IGenerator generator)])
   (:import [cascading.pipe Each Every]
+           [cascading.tuple Fields]
            [cascading.operation Filter]
-           [cascalog CascalogFunction
+           [cascalog.aggregator CombinerSpec]
+           [cascalog CascalogFunction ClojureBufferCombiner
             CascalogFunctionExecutor CascadingFilterToFunction
             CascalogBuffer CascalogBufferExecutor CascalogAggregator
             CascalogAggregatorExecutor ClojureParallelAgg ParallelAgg]
@@ -21,7 +24,7 @@
             FilterApplication Grouping Join ExistenceNode
             Unique Merge Rename]
            [cascalog.logic.predicate RawSubquery]
-           [cascalog.logic.def ParallelAggregator Prepared]
+           [cascalog.logic.def ParallelAggregator ParallelBuffer Prepared]
            [cascalog.cascading.types ClojureFlow]))
 
 ;; ## Allowed Predicates
@@ -195,11 +198,36 @@
 
   Grouping
   (to-generator [{:keys [source aggregators grouping-fields options]}]
-    (let [aggs (map (fn [{:keys [op input output]}]
-                      (agg-cascading op input output))
-                    aggregators)]
-      (apply ops/group-by*
-             source grouping-fields aggs (opt-seq options))))
+    (if-let [bufs (not-empty
+                   (filter #(instance? ParallelBuffer (:op %)) aggregators))]
+      (do (assert (= (count aggregators) 1)
+                  "Only one buffer allowed per subquery.")
+          (let [{:keys [op input output]} (first bufs)
+                {:keys [init-var combine-var present-var
+                        num-intermediate-vars-fn buffer-var]} op
+                temps (v/gen-nullable-vars
+                       (num-intermediate-vars-fn input output))
+                spec (-> (CombinerSpec. combine-var)
+                         (.setPrepareFn init-var)
+                         (.setPresentFn present-var))
+                source (-> source
+                           (ops/add-op #(Each. % Fields/ALL
+                                               (ClojureBufferCombiner.
+                                                (casc/fields grouping-fields)
+                                                (casc/fields (:sort options))
+                                                (casc/fields input)
+                                                (casc/fields temps)
+                                                spec))))]
+            (apply ops/group-by*
+                   source
+                   grouping-fields
+                   [(ops/buffer buffer-var temps output)]
+                   (opt-seq options))))
+      (let [aggs (map (fn [{:keys [op input output]}]
+                        (agg-cascading op input output))
+                      aggregators)]
+        (apply ops/group-by*
+               source grouping-fields aggs (opt-seq options)))))
 
   Unique
   (to-generator [{:keys [source fields options]}]
