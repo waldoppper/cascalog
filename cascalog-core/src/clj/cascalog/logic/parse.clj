@@ -154,7 +154,7 @@
   (when (> (count buffers) 1)
     (throw-illegal "Multiple buffers aren't allowed in the same subquery.")))
 
-(defn validate-predicates! [preds]
+(defn validate-predicates! [preds opts]
   (let [grouped (group-by (fn [x]
                             (condp #(%1 %2) (:op x)
                               generator? :gens
@@ -642,32 +642,32 @@
 
 (defn build-rule
   [{:keys [fields predicates] :as input}]
-  (validate-predicates! predicates)
-  (let [[options predicates] (opts/extract-options predicates)
-        expanded (mapcat expand-outvars predicates)
-        [nodes expanded] (s/separate #(instance? TailStruct (:op %)) expanded)
-        grouped (->> expanded
-                     (map (partial p/build-predicate options))
-                     (group-by type))
-        generators (concat (grouped Generator)
-                           (grouped GeneratorSet))
-        operations (concat (grouped Operation)
-                           (grouped FilterOperation))
-        aggs       (grouped Aggregator)
-        tails      (concat (initial-tails generators operations)
-                           (map (fn [{:keys [op output]}]
-                                  (-> op
-                                      (rename output)
-                                      (assoc :operations operations)))
-                                nodes))
-        joined     (merge-tails tails)
-        grouping-fields (seq (intersection
-                              (set (:available-fields joined))
-                              (set fields)))
-        agg-tail (build-agg-tail joined aggs grouping-fields options)
-        {:keys [operations available-fields] :as tail} (add-ops-fixed-point agg-tail)]
-    (validate-projection! operations fields available-fields)
-    (project tail fields)))
+  (let [[options predicates] (opts/extract-options predicates)]
+    (validate-predicates! predicates options)
+    (let [expanded (mapcat expand-outvars predicates)
+          [nodes expanded] (s/separate #(instance? TailStruct (:op %)) expanded)
+          grouped (->> expanded
+                       (map (partial p/build-predicate options))
+                       (group-by type))
+          generators (concat (grouped Generator)
+                             (grouped GeneratorSet))
+          operations (concat (grouped Operation)
+                             (grouped FilterOperation))
+          aggs       (grouped Aggregator)
+          tails      (concat (initial-tails generators operations)
+                             (map (fn [{:keys [op output]}]
+                                    (-> op
+                                        (rename output)
+                                        (assoc :operations operations)))
+                                  nodes))
+          joined     (merge-tails tails)
+          grouping-fields (seq (intersection
+                                (set (:available-fields joined))
+                                (set fields)))
+          agg-tail (build-agg-tail joined aggs grouping-fields options)
+          {:keys [operations available-fields] :as tail} (add-ops-fixed-point agg-tail)]
+      (validate-projection! operations fields available-fields)
+      (project tail fields))))
 
 ;; ## Predicate Parsing
 ;;
@@ -690,8 +690,7 @@
   (let [output-fields (v/sanitize output-fields)
         raw-predicates (mapcat p/normalize raw-predicates)]
     (if (query-signature? output-fields)
-      (build-rule
-       (p/->RawSubquery output-fields raw-predicates))
+      (p/->RawSubquery output-fields raw-predicates)
       (let [parsed (parse-variables output-fields :<)]
         (pm/build-predmacro (:input parsed)
                             (:output parsed)

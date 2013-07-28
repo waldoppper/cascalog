@@ -1,5 +1,5 @@
 (ns cascalog.logic.options
-  (:require [jackknife.core :refer (throw-illegal)]
+  (:require [jackknife.core :refer (throw-illegal uuid)]
             [jackknife.seq :as s]))
 
 ;; ## Option Parsing
@@ -49,7 +49,8 @@
               {op (condp = op
                     ;; Flatten sorting fields.
                     :sort (flatten input)
-
+                    ;; TODO: validation.
+                    :trap {:tap (first input) :name (uuid)}
                     ;; Otherwise, take the first item. TODO: Throw if
                     ;; more than one item exists for non-sorting
                     ;; fields.

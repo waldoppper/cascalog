@@ -104,7 +104,7 @@
                       (merge m#))))))))
 
 ;; Leaves of the tree:
-(defnode Generator [gen fields])
+(defnode Generator [gen fields options])
 
 ;; GeneratorSets can't be unground, ever.
 (defrecord GeneratorSet [generator join-set-var])
@@ -117,18 +117,37 @@
 (defrecord Aggregator [op input output])
 
 (def can-generate?
-  (some-fn node? types/generator?))
+  (some-fn node?
+           types/generator?
+           #(instance? GeneratorSet %)))
+
+(defn init-pipe-name [options]
+  (or (:name (:trap options))
+      (u/uuid)))
+
+(defn- init-trap-map [options]
+  (if-let [trap (:trap options)]
+    {(:name trap) (types/to-sink (:tap trap))}
+    {}))
 
 ;; TODO: Move this into a Cascading execution context.
 (defn generator-node
   "Converts the supplied generator into the proper type of node."
-  [gen input output]
-  {:pre [(types/generator? gen) (empty? input)]}
-  (->Generator (-> (types/generator gen)
-                   (ops/rename-pipe)
-                   (ops/rename* output)
-                   (ops/filter-nullable-vars output))
-               output))
+  [gen input output options]
+
+  {:pre [(empty? input)]}
+  (if (instance? GeneratorSet gen)
+    (let [{:keys [generator] :as op} gen]
+      (assert ((some-fn node? types/generator?) generator)
+              (str "Only Nodes or Generators allowed: " generator))
+      (assoc op :generator (generator-node generator input output options)))
+    (->Generator (-> (types/generator gen)
+                     (update-in [:trap-map] #(merge % (init-trap-map options)))
+                     (ops/rename-pipe (init-pipe-name options))
+                     (ops/rename* output)
+                     (ops/filter-nullable-vars output))
+                 output
+                 options)))
 
 ;; The following multimethod converts operations (in the first
 ;; position of a parsed cascalog predicate) to nodes in the graph.
@@ -146,15 +165,6 @@
 (defmethod to-predicate Subquery
   [op input output]
   (to-predicate (.getCompiledSubquery op) input output))
-
-(defmethod to-predicate GeneratorSet
-  [{:keys [generator] :as op} input output]
-  (assert (empty? input)
-          (str "GeneratorSet <" op "> can't have input: " input))
-  (assert ((some-fn node? types/generator?) generator)
-          (str "Only Nodes or Generators allowed: " generator))
-  (assoc op
-    :generator (generator-node generator input output)))
 
 (defmethod to-predicate ClojureOp
   [op input output]
@@ -219,9 +229,14 @@
   "Accepts an option map and a raw predicate and returns a node in the
   Cascalog graph."
   [options {:keys [op input output] :as pred}]
-  (cond (types/generator? op) (generator-node op input output)
-        (instance? Prepared op) (build-predicate options
-                                                 (assoc pred :op ((:op op) options)))
+  (cond (or (types/generator? op)
+            (instance? GeneratorSet op))
+        (generator-node op input output options)
+
+        (instance? Prepared op)
+        (build-predicate options
+                         (assoc pred :op ((:op op) options)))
+
         :else (to-predicate op input output)))
 
 (comment

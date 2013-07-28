@@ -98,7 +98,8 @@
   random Cascalog variable (uniqued by appending a suffix, so nullable
   vs non-nullable will be maintained)."
   [input-decl output-decl raw-predicates]
-  (validate-declarations! input-decl output-decl)
+  (validate-declarations! (s/collectify input-decl)
+                          (s/collectify output-decl))
   (reify IPredMacro
     (expand [_ invars outvars]
       (let [outvars (if (use-as-filter? output-decl outvars)

@@ -174,12 +174,6 @@
 (defalias predmacro* pm/predmacro*)
 (defalias predmacro pm/predmacro)
 
-(defn union
-  "Merge the tuples from the subqueries together into a single
-  subquery and ensure uniqueness of tuples."
-  [& gens]
-  (apply ops/unique (apply combine gens)))
-
 ;; TODO: Handle cases where don't have ALL of the same
 ;; type. (combining a tap with a query, for example. This is the
 ;; normalization step.) group by type, get them to generators, then
@@ -191,6 +185,12 @@
   [& gens]
   (cascalog.cascading.types/generator
    (algebra/sum gens)))
+
+(defn union
+  "Merge the tuples from the subqueries together into a single
+  subquery and ensure uniqueness of tuples."
+  [& gens]
+  (apply ops/unique (apply combine gens)))
 
 (defprotocol ISelectFields
   (select-fields [gen fields]

@@ -115,7 +115,7 @@
             (plus-k [k] (plus (k l) (k r)))]
       (->ClojureFlow (merge-k :source-map)
                      (plus-k :sink-map)
-                     (plus-k :trap-map)
+                     (merge-k :trap-map)
                      (plus-k (comp vec :tails))
                      (plus-k :pipe)
                      (:name l)))))

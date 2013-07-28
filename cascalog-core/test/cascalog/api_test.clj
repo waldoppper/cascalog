@@ -815,13 +815,81 @@
                (src2 !a)
                (src2 !a)
                (:trap empty2)))))
+
+(deftest test-trap
+  (let [num [[1] [2]]]
+    (with-expected-sink-sets [trap1 [[1]]]
+      (test?<- [[2]]
+               [?n]
+               (num ?n)
+               (odd-fail ?n)
+               (:trap trap1)))
+
+    (is (thrown? Exception (test?<- [[2]]
+                                    [?n]
+                                    (num ?n)
+                                    (odd-fail ?n))))))
+
+(deftest test-trap-joins
+  (let [age    [["A" 20] ["B" 21]]
+        gender [["A" "m"] ["B" "f"]]]
+    (with-expected-sink-sets [trap1 [[21]]
+                              trap2 [[21 "f"]]]
+      (test?<- [["A" 20 "m"]]
+               [?p ?a ?g]
+               (age ?p ?a)
+               (gender ?p ?g)
+               (odd-fail ?a)
+               (:trap trap1))
+
+      (test?<- [["A" 20 "m"]]
+               [?p ?a ?g]
+               (age ?p ?a)
+               (gender ?p ?g)
+               (odd-fail ?a ?g)
+               (:trap trap2)))))
+
+(deftest test-multi-trap
+  (let [age [["A" 20] ["B" 21]]
+        weight [["A" 191] ["B" 192]]]
+    (with-expected-sink-sets [trap1 [[21]]
+                              trap2 [["A" 20 191]] ]
+      (let [sq (<- [?p ?a]
+                   (age ?p ?a)
+                   (odd-fail ?a)
+                   (:trap trap1)
+                   (:distinct false))]
+        (test?<- []
+                 [?p ?a ?w]
+                 (sq ?p ?a)
+                 (weight ?p ?w)
+                 (odd-fail ?w ?p ?a)
+                 (:trap trap2))))))
+
+(deftest test-trap-isolation
+  (let [num [[1] [2]]]
+    (is (thrown? Exception
+                 (with-expected-sink-sets [trap1 [[]] ]
+                   (let [sq (<- [?n] (num ?n) (odd-fail ?n))]
+                     (test?<- [[2]]
+                              [?n]
+                              (sq ?n)
+                              (:trap trap1))))))
+    (with-expected-sink-sets [trap1 [[1]]]
+      (let [sq (<- [?n]
+                   (num ?n)
+                   (odd-fail ?n)
+                   (:trap trap1))]
+        (test?<- [[2]]
+                 [?n]
+                 (sq ?n))))))
 (comment
   (deftest test-sample-count
+    "sample should return a number of samples equal to the specified
+     sample size param"
     (let [numbers [[1] [2] [3] [4] [5] [6] [7] [8] [9] [10]]
           sampling-query (c/fixed-sample numbers 5)]
-      (fact?<- "sample should return a number of samples equal to the specified
-             sample size param"
-               [[5]]
+      (test?<- [[5]]
                [?count]
                (sampling-query ?s)
                (c/count ?count))))
@@ -830,21 +898,8 @@
     (let [numbers [[1 2] [3 4] [5 6] [7 8] [9 10]]
           sampling-query (c/fixed-sample numbers 5)]
       (fact?- "sample should contain some of the inputs"
-              (contains #{[1 2] [3 4] [5 6]} :gaps-ok) sampling-query)))
-
-  (deftest test-trap
-    (let [num [[1] [2]]]
-      (with-expected-sink-sets [trap1 [[1]]]
-        (test?<- [[2]]
-                 [?n]
-                 (num ?n)
-                 (odd-fail ?n)
-                 (:trap trap1)))
-
-      (is (thrown? Exception (test?<- [[2]]
-                                      [?n]
-                                      (num ?n)
-                                      (odd-fail ?n))))))
+              (contains #{[1 2] [3 4] [5 6]} :gaps-ok)
+              sampling-query)))
 
   (deftest test-limit
     (let [pair [["a" 1] ["a" 3] ["a" 2]
@@ -908,58 +963,4 @@
                [?l ?n2]
                (pair ?l ?n)
                (:sort ?n)
-               (c/limit [2] ?n :> ?n2))))
-
-  (deftest test-trap-joins
-    (let [age    [["A" 20] ["B" 21]]
-          gender [["A" "m"] ["B" "f"]]]
-      (with-expected-sink-sets [trap1 [[21]]
-                                trap2 [[21 "f"]]]
-        (test?<- [["A" 20 "m"]]
-                 [?p ?a ?g]
-                 (age ?p ?a)
-                 (gender ?p ?g)
-                 (odd-fail ?a)
-                 (:trap trap1))
-
-        (test?<- [["A" 20 "m"]]
-                 [?p ?a ?g]
-                 (age ?p ?a)
-                 (gender ?p ?g)
-                 (odd-fail ?a ?g)
-                 (:trap trap2)))))
-
-  (deftest test-multi-trap
-    (let [age [["A" 20] ["B" 21]]
-          weight [["A" 191] ["B" 192]]]
-      (with-expected-sink-sets [trap1 [[21]]
-                                trap2 [["A" 20 191]] ]
-        (let [sq (<- [?p ?a]
-                     (age ?p ?a)
-                     (odd-fail ?a)
-                     (:trap trap1)
-                     (:distinct false))]
-          (test?<- []
-                   [?p ?a ?w]
-                   (sq ?p ?a)
-                   (weight ?p ?w)
-                   (odd-fail ?w ?p ?a)
-                   (:trap trap2))))))
-
-  (deftest test-trap-isolation
-    (let [num [[1] [2]]]
-      (is (thrown? Exception
-                   (with-expected-sink-sets [trap1 [[]] ]
-                     (let [sq (<- [?n] (num ?n) (odd-fail ?n))]
-                       (test?<- [[2]]
-                                [?n]
-                                (sq ?n)
-                                (:trap trap1))))))
-      (with-expected-sink-sets [trap1 [[1]]]
-        (let [sq (<- [?n]
-                     (num ?n)
-                     (odd-fail ?n)
-                     (:trap trap1))]
-          (test?<- [[2]]
-                   [?n]
-                   (sq ?n)))))))
+               (c/limit [2] ?n :> ?n2)))))
