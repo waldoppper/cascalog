@@ -28,7 +28,7 @@
 
 (deftest test-simple-query
   (let [age [["n" 24] ["n" 23] ["i" 31] ["c" 30] ["j" 21] ["q" nil]]]
-    (test?<- :info [["j"] ["n"]]
+    (test?<- [["j"] ["n"]]
              [?p]
              (age ?p ?a)
              (< ?a 25)
@@ -600,32 +600,30 @@
              (vals ?v)
              ((KeepEven.) ?v :> ?b))))
 
-(comment
-  "TODO: Fix this Cascalog buffer bullshit."
-  (deftest test-java-buffer
-    (let [vals [["a" 1 10] ["a" 2 20] ["b" 3 31]]]
-      (test?<- [["a" 1] ["b" 1]]
-               [?f1 ?o]
-               (vals ?f1 _ _)
-               ((OneBuffer.) :> ?o))
+(deftest test-java-buffer
+  (let [vals [["a" 1 10] ["a" 2 20] ["b" 3 31]]]
+    (test?<- [["a" 1] ["b" 1]]
+             [?f1 ?o]
+             (vals ?f1 _ _)
+             ((OneBuffer.) :> ?o))
 
-      (test?<- [["a" 1 10] ["a" 2 20] ["b" 3 31]]
-               [?f1 ?f2out ?f3out]
-               (vals ?f1 ?f2 ?f3)
-               ((IdentityBuffer.) ?f2 ?f3 :> ?f2out ?f3out))))
+    (test?<- [["a" 1 10] ["a" 2 20] ["b" 3 31]]
+             [?f1 ?f2out ?f3out]
+             (vals ?f1 ?f2 ?f3)
+             ((IdentityBuffer.) ?f2 ?f3 :> ?f2out ?f3out))))
 
-  (deftest test-java-aggregator
-    (let [vals [["a" 1] ["a" 2] ["b" 3] ["c" 8] ["c" 13] ["b" 1] ["d" 5] ["c" 8]]]
-      (test?<- [["a" 2] ["b" 2] ["c" 3] ["d" 1]]
-               [?f1 ?o]
-               (vals ?f1 _)
-               ((CountAgg.) :> ?o))
+(deftest test-java-aggregator
+  (let [vals [["a" 1] ["a" 2] ["b" 3] ["c" 8] ["c" 13] ["b" 1] ["d" 5] ["c" 8]]]
+    (test?<- [["a" 2] ["b" 2] ["c" 3] ["d" 1]]
+             [?f1 ?o]
+             (vals ?f1 _)
+             ((CountAgg.) :> ?o))
 
-      (test?<- [["a" 3 2] ["b" 4 2] ["c" 29 3] ["d" 5 1]]
-               [?key ?sum ?count]
-               (vals ?key ?val)
-               ((CountAgg.) ?count)
-               ((SumAgg.) ?val :> ?sum)))))
+    (test?<- [["a" 3 2] ["b" 4 2] ["c" 29 3] ["d" 5 1]]
+             [?key ?sum ?count]
+             (vals ?key ?val)
+             ((CountAgg.) ?count)
+             ((SumAgg.) ?val :> ?sum))))
 
 "TODO: These need union and combine to do proper renames."
 (defn run-union-combine-tests

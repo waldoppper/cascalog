@@ -43,6 +43,10 @@
   [op input output]
   (p/->Aggregator op input output))
 
+(defmethod p/to-predicate CascalogBuffer
+  [op input output]
+  (p/->Aggregator op input output))
+
 ;; ## Query Execution
 ;;
 ;; TODO: Add a dynamic variable that holds an execution context. The
@@ -156,14 +160,14 @@
   [op input output]
   (reify ops/IBuffer
     (add-buffer [_ pipe]
-      (Every. pipe input
+      (Every. pipe (casc/fields input)
               (CascalogBufferExecutor. (casc/fields output) op)))))
 
 (defmethod agg-cascading CascalogAggregator
   [op input output]
   (reify ops/IAggregator
     (add-aggregator [_ pipe]
-      (Every. pipe input
+      (Every. pipe (casc/fields input)
               (CascalogAggregatorExecutor. (casc/fields output) op)))))
 
 (defn opt-seq

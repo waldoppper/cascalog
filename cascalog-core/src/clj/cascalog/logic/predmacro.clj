@@ -21,6 +21,9 @@
     "Returns a sequence of vectors suitable to feed into
     cascalog.parse/normalize."))
 
+(defn predmacro? [o]
+  (satisfies? IPredMacro (if (var? o) @o o)))
+
 (extend-protocol p/ICouldFilter
   cascalog.logic.predmacro.IPredMacro
   (filter? [_] true))
@@ -33,6 +36,12 @@
   (expand [p input output]
     (expand (.getCompiledPredMacro p) input output))
 
+  clojure.lang.Var
+  (expand [v input output]
+    (if (predmacro? v)
+      (expand @v input output)
+      (u/throw-runtime)))
+
   ;; TODO: jCascalog shold just use these interfaces directly. If this
   ;; were the case, we wouldn't have to extend the protocol here.
   PredicateMacro
@@ -41,9 +50,6 @@
               (jcascalog.Fields. (or fields [])))]
       (-> p (.getPredicates (to-fields input)
                             (to-fields output))))))
-
-(defn predmacro? [o]
-  (satisfies? IPredMacro o))
 
 ;; kind of a hack, simulate using pred macros like filters
 
