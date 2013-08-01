@@ -111,7 +111,8 @@
 
   IPersistentVector
   (normalize [[op & rest]]
-    (let [default (default-selector op)
+    (let [op (p/to-operation op)
+          default (default-selector op)
           {:keys [input output]} (parse-variables rest (default-selector op))]
       (if (pm/predmacro? op)
         (mapcat p/normalize (pm/expand op input output))

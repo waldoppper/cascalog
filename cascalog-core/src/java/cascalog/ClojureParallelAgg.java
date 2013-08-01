@@ -20,7 +20,6 @@ package cascalog;
 import java.util.List;
 
 import cascading.flow.FlowProcess;
-import cascading.operation.OperationCall;
 import cascalog.aggregator.CombinerSpec;
 import clojure.lang.IFn;
 import clojure.lang.RT;
@@ -35,7 +34,7 @@ public class ClojureParallelAgg implements ParallelAgg {
   }
 
   // TODO: Remove this once we have a functor properly in place.
-  public void prepare(FlowProcess flowProcess, OperationCall operationCall) {
+  public void prepare(FlowProcess flowProcess) {
     _initFn = Util.deserializeFn(_spec.prepareFn);
     _combinerFn = Util.deserializeFn(_spec.combineFn);
   }

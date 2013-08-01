@@ -21,10 +21,9 @@ import java.io.Serializable;
 import java.util.List;
 
 import cascading.flow.FlowProcess;
-import cascading.operation.OperationCall;
 
 public interface ParallelAgg extends Serializable {
-  void prepare(FlowProcess flowProcess, OperationCall operationCall);
+  void prepare(FlowProcess flowProcess);
 
   List<Object> init(List<Object> input);
 

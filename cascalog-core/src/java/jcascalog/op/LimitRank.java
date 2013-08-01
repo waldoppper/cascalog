@@ -6,6 +6,6 @@ import jcascalog.ClojureOp;
 
 public class LimitRank extends ClojureOp {
   public LimitRank(int amt) {
-    super("cascalog.ops", "limit-rank", Arrays.asList((Object) amt));
+    super("cascalog.logic.ops", "limit-rank", Arrays.asList((Object) amt));
   }
 }

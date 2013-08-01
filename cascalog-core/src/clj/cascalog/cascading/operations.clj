@@ -160,8 +160,7 @@
   (add-buffer [_ pipe]))
 
 (defn parallel-agg
-  "Creates a parallel aggregation operation. TODO: Take a prepare and
-  present var."
+  "Creates a parallel aggregation operation."
   [agg-fn in-fields out-fields & {:keys [init-var present-var]}]
   (let [in-fields (fields in-fields)
         out-fields (fields out-fields)]

@@ -132,7 +132,7 @@
   new operation that can be called with the remaining unspecified
   args. For example, given this require and defmapop:
 
-  (require '[cascalog.ops :as c])
+  (require '[cascalog.logic.ops :as c])
   (defmapop plus [x y] (+ x y))
 
   The following two forms are equivalent:

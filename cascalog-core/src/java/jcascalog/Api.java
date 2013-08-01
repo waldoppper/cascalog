@@ -88,17 +88,17 @@ public class Api {
   }
 
   public static String genNullableVar() {
-    return (String) Util.bootSimpleFn("cascalog.vars", "gen-nullable-var").invoke();
+    return (String) Util.bootSimpleFn("cascalog.logic.vars", "gen-nullable-var").invoke();
   }
 
   public static Fields genNullableVars(int amt) {
     List<String> vars =
-        (List<String>) Util.bootSimpleFn("cascalog.vars", "gen-nullable-vars").invoke(amt);
+        (List<String>) Util.bootSimpleFn("cascalog.logic.vars", "gen-nullable-vars").invoke(amt);
     return new Fields(vars);
   }
 
   public static void setApplicationConf(Map conf) {
-    Util.bootSimpleFn("cascalog.conf", "set-job-conf!").invoke(conf);
+    Util.bootSimpleFn("cascalog.cascading.conf", "set-job-conf!").invoke(conf);
   }
 
   public static Object negate(Object op) {
@@ -191,6 +191,6 @@ public class Api {
   }
 
   private static IFn getOpFn(String name) {
-    return Util.bootSimpleFn("cascalog.ops", name);
+    return Util.bootSimpleFn("cascalog.logic.ops", name);
   }
 }

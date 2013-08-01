@@ -31,7 +31,7 @@
   ;; and returns a reified instance of IPredMacro.
   PredicateMacroTemplate
   (expand [p input output]
-    ((.getCompiledPredMacro p) input output))
+    (expand (.getCompiledPredMacro p) input output))
 
   ;; TODO: jCascalog shold just use these interfaces directly. If this
   ;; were the case, we wouldn't have to extend the protocol here.

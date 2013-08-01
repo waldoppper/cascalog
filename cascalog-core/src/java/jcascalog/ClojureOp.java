@@ -5,6 +5,7 @@ import java.util.List;
 
 import cascalog.Util;
 import clojure.lang.IFn;
+import clojure.lang.Var;
 
 public class ClojureOp {
   String _namespace;
@@ -21,11 +22,11 @@ public class ClojureOp {
     this.hofArgs = hofArgs;
   }
 
-  public IFn toVar() {
-    IFn ret = Util.getVar(_namespace, _name);
+  public Object toVar() {
+    Var ret = Util.getVar(_namespace, _name);
     if (!hofArgs.isEmpty())
-      return (IFn) ret.applyTo(Util.coerceToSeq(hofArgs));
+      return ret.applyTo(Util.coerceToSeq(hofArgs));
     else
-      return ret;
+      return ret.deref();
   }
 }

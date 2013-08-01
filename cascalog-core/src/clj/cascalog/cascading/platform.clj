@@ -9,21 +9,24 @@
             [cascalog.logic.parse :as parse]
             [cascalog.logic.algebra :refer (sum)]
             [cascalog.logic.zip :as zip]
+            [cascalog.logic.fn :as serfn]
             [cascalog.logic.vars :as v]
             [cascalog.logic.parse :as parse]
             [cascalog.cascading.types :refer (IGenerator generator)])
   (:import [cascading.pipe Each Every]
            [cascading.tuple Fields]
            [cascading.operation Filter]
-           [cascalog.aggregator CombinerSpec]
+           [cascalog.aggregator CombinerSpec ClojureMonoidAggregator
+            ClojureParallelAggregator]
            [cascalog CascalogFunction ClojureBufferCombiner
             CascalogFunctionExecutor CascadingFilterToFunction
             CascalogBuffer CascalogBufferExecutor CascalogAggregator
-            CascalogAggregatorExecutor ClojureParallelAgg ParallelAgg]
+            CascalogAggregatorExecutor ParallelAgg]
            [cascalog.logic.parse TailStruct Projection Application
             FilterApplication Grouping Join ExistenceNode
             Unique Merge Rename]
            [cascalog.logic.predicate RawSubquery]
+           [cascalog.cascading.operations IAggregateBy IAggregator]
            [cascalog.logic.def ParallelAggregator ParallelBuffer Prepared]
            [cascalog.cascading.types ClojureFlow]))
 
@@ -35,6 +38,10 @@
   (if (empty? output)
     (p/->FilterOperation op input)
     (p/->Operation op input output)))
+
+(defmethod p/to-predicate ParallelAgg
+  [op input output]
+  (p/->Aggregator op input output))
 
 ;; ## Query Execution
 ;;
@@ -134,6 +141,16 @@
   (ops/parallel-agg (:combine-var op) input output
                     :init-var (:init-var op)
                     :present-var (:present-var op)))
+
+(defmethod agg-cascading ParallelAgg
+  [op input output]
+  (ops/parallel-agg (serfn/fn [l r]
+                      (-> op
+                          (.combine (s/collectify l)
+                                    (s/collectify r))))
+                    input output
+                    :init-var (serfn/fn [x]
+                                (.init op (s/collectify x)))))
 
 (defmethod agg-cascading CascalogBuffer
   [op input output]

@@ -4,15 +4,13 @@ import java.util.Arrays;
 import java.util.List;
 
 import cascading.flow.FlowProcess;
-import cascading.operation.OperationCall;
 import cascalog.ParallelAgg;
 import clojure.lang.Numbers;
 
 public class MultiplyAgg implements ParallelAgg {
 
   @Override
-  public void prepare(FlowProcess flowProcess, OperationCall operationCall) {
-  }
+  public void prepare(FlowProcess flowProcess) { }
 
   @Override
   public List<Object> init(List<Object> input) {

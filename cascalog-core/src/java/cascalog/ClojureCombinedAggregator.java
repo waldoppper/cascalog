@@ -37,7 +37,7 @@ public class ClojureCombinedAggregator extends BaseOperation<Object> implements 
 
   @Override
   public void prepare(FlowProcess flowProcess, OperationCall<Object> opCall) {
-    _agg.prepare(flowProcess, opCall);
+    _agg.prepare(flowProcess);
   }
 
   public void start(FlowProcess flowProcess, AggregatorCall<Object> aggCall) {

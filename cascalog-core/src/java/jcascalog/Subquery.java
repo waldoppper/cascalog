@@ -19,8 +19,12 @@ public class Subquery {
     _outFields = new Fields((List) fields);
   }
 
+  public Fields getOutputFields() {
+    return _outFields;
+  }
+
   public Object getCompiledSubquery() {
-    return Util.bootSimpleFn("cascalog.logic.parse", "compile-subquery")
+    return Util.bootSimpleFn("cascalog.logic.parse", "parse-subquery")
       .invoke(_outFields, _preds);
   }
 

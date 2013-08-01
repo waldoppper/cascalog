@@ -9,7 +9,7 @@ import cascading.tuple.TupleEntry;
 /**
  * Straight-up port of Scalding's FoldFunctor.
  */
-abstract class FoldFunctor<T> implements AggregateBy.Functor {
+public abstract class FoldFunctor<T> implements AggregateBy.Functor {
   protected final Fields fields;
   protected Tuple nextContext = null;
 

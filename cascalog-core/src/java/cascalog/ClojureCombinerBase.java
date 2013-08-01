@@ -80,7 +80,7 @@ public abstract class ClojureCombinerBase extends BaseOperation implements Funct
     this.cacheSize = jc.getInt(this.cacheConfArg, this.defaultCacheSize);
     combined = new LinkedHashMap<Tuple, Map<Integer, List<Object>>>(1000, (float) 0.75, true);
     for (ParallelAgg agg : aggs) {
-      agg.prepare(flowProcess, operationCall);
+      agg.prepare(flowProcess);
     }
   }
 

@@ -11,6 +11,21 @@
            [jcascalog Subquery ClojureOp]
            [cascalog CascalogFunction CascalogBuffer CascalogAggregator ParallelAgg]))
 
+(defprotocol IOperation
+  (to-operation [_]
+    "Returns a sequence of RawPredicate instances."))
+
+(extend-protocol IOperation
+  Object
+  (to-operation [x] x)
+
+  ClojureOp
+  (to-operation [x] (.toVar x))
+
+  Subquery
+  (to-operation [op]
+    (.getCompiledSubquery op)))
+
 (defprotocol IRawPredicate
   (normalize [_]
     "Returns a sequence of RawPredicate instances."))
@@ -70,6 +85,9 @@
 
   clojure.lang.Fn
   (filter? [_] true)
+
+  clojure.lang.Var
+  (filter? [v] (fn? @v))
 
   clojure.lang.MultiFn
   (filter? [_] true))
@@ -145,14 +163,6 @@
 
 ;; ## Operations
 
-(defmethod to-predicate Subquery
-  [op input output]
-  (to-predicate (.getCompiledSubquery op) input output))
-
-(defmethod to-predicate ClojureOp
-  [op input output]
-  (to-predicate (.toVar op) input output))
-
 (defmethod to-predicate IFn
   [op input output]
   (if-let [output (not-empty output)]
@@ -200,12 +210,6 @@
 (defmethod to-predicate ParallelBuffer
   [op input output]
   (->Aggregator op input output))
-
-(defmethod to-predicate CascalogBuffer
-  [op input output]
-  (->Aggregator op input output))
-
-;; TODO: jcascalog ParallelAgg.
 
 (defmethod to-predicate CascalogAggregator
   [op input output]

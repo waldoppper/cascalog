@@ -72,6 +72,10 @@
 ;; define output fields, rather than just throwing immediately.
 
 (extend-protocol INumOutFields
+  Subquery
+  (num-out-fields [sq]
+    (count (seq (.getOutputFields sq))))
+
   CascalogTap
   (num-out-fields [tap]
     (num-out-fields (:source tap)))

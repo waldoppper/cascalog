@@ -72,7 +72,7 @@ public class PredicateMacroTemplate {
   }
 
   public Object getCompiledPredMacro() {
-    return Util.bootSimpleFn("cascalog.predmacro", "build-predmacro")
+    return Util.bootSimpleFn("cascalog.logic.predmacro", "build-predmacro")
       .invoke(_inFields, _outFields, _preds);
   }
 }

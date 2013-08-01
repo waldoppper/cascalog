@@ -7,6 +7,6 @@ import jcascalog.ClojureOp;
 
 public class ReParse extends ClojureOp {
   public ReParse(Pattern pattern) {
-    super("cascalog.ops", "re-parse", Arrays.asList((Object) pattern));
+    super("cascalog.logic.ops", "re-parse", Arrays.asList((Object) pattern));
   }
 }
