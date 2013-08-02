@@ -156,12 +156,13 @@
                               d/bufferop? :buffers
                               d/aggregateop? :aggs
                               :ops))
-                          preds)]
+                          preds)
+        [options _] (opts/extract-options preds)]
     (unground-assertions! (:gens grouped)
                           (:ops grouped))
     (aggregation-assertions! (:buffers grouped)
                              (:aggs grouped)
-                             (first (opts/extract-options preds)))))
+                             options)))
 
 (defn query-signature?
   "Accepts the normalized return vector of a Cascalog form and returns
@@ -203,7 +204,10 @@
   (make-node [this children]
              (assoc this :node (first children))))
 
-(def tail? (partial instance? TailStruct))
+(def tail?
+  "Returns true if the supplied item is a TailStruct, false
+  otherwise."
+  (partial instance? TailStruct))
 
 ;; ExistenceNode is the same as a GeneratorSet, basically.
 (p/defnode ExistenceNode [source output-field]
@@ -309,6 +313,9 @@
          (subset? infields-set available-set)
          (or all-ground? ground?))))
 
+;; TODO: If we have these, do we really need the extra Operation and
+;; FilterOperation wrapping in predicate?
+
 (defprotocol IApplyToTail
   (accept? [this tail]
     "Returns true if this op can be applied to the current tail")
@@ -373,12 +380,9 @@
   "TODO: Make a test."
   (let [good-op (p/->FilterOperation = [10 "?a"])
         bad-op  (p/->FilterOperation = [10 "?b"])
-        node (-> [[1] [2]]
-                 (->ExistenceNode "fuck")
-                 (->Application (p/->Operation * "a" "b")))
         tail (map->TailStruct {:ground? true
                                :available-fields ["?a" "!z"]
-                               :node node})]
+                               :node [[1] [2]]})]
     (prn (accept? good-op tail))
     (prn (accept? bad-op tail))))
 
