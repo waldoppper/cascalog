@@ -259,7 +259,7 @@
 (defalias bufferiterfn d/bufferiterfn)
 
 (defalias defmapop d/defmapfn)
-(defalias deffilterop d/defmapfn)
+(defalias deffilterop d/deffilterfn)
 (defalias defmapcatop d/defmapcatfn)
 (defalias defbufferop d/defbufferfn)
 (defalias defbufferiterop d/defbufferiterfn)
