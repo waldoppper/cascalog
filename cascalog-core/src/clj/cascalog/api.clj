@@ -1,11 +1,11 @@
 (ns cascalog.api
-  (:use [jackknife.core :only (safe-assert uuid)]
-        [jackknife.seq :only (collectify)])
+  (:use [jackknife.seq :only (collectify)])
   (:require [clojure.set :as set]
             [cascalog.logic.def :as d]
             [cascalog.logic.algebra :as algebra]
             [cascalog.logic.vars :as v]
             [cascalog.logic.predicate :as p]
+            [cascalog.logic.platform :as platform]
             [cascalog.logic.parse :as parse]
             [cascalog.logic.predmacro :as pm]
             [cascalog.cascading.platform :refer (compile-query)]
@@ -18,6 +18,7 @@
             [cascalog.cascading.io :as io]
             [cascalog.cascading.util :refer (generic-cascading-fields?)]
             [hadoop-util.core :as hadoop]
+            [jackknife.core :as u]
             [jackknife.def :as jd :refer (defalias)])
   (:import [cascading.flow Flow]
            [cascading.tap Tap]
@@ -48,9 +49,10 @@
   Tap
   (get-out-fields [tap]
     (let [cfields (.getSourceFields tap)]
-      (safe-assert (not (generic-cascading-fields? cfields))
-                   (str "Cannot get specific out-fields from tap. Tap source fields: "
-                        cfields))
+      (u/safe-assert
+       (not (generic-cascading-fields? cfields))
+       (str "Cannot get specific out-fields from tap. Tap source fields: "
+            cfields))
       (vec (seq cfields))))
 
   TailStruct
@@ -182,23 +184,45 @@
 (defalias predmacro* pm/predmacro*)
 (defalias predmacro pm/predmacro)
 
+(defn name-vars [gen vars]
+  (let [vars (collectify vars)]
+    (<- vars
+        (gen :>> vars)
+        (:distinct false))))
+
 ;; TODO: Handle cases where don't have ALL of the same
 ;; type. (combining a tap with a query, for example. This is the
 ;; normalization step.) group by type, get them to generators, then
 ;; combine each generator.
 
+;; TODO: Turn EVERYONE into a tailstruct, then merge.
+
+(defn to-tail [g & {:keys [fields]}]
+  (cond (parse/tail? g) g
+        (types/generator? g)
+        (if (and (coll? g) (empty? g))
+          (u/throw-illegal
+           "Data structure is empty -- memory sources must contain tuples.")
+          (let [names (or fields (v/gen-nullable-vars (num-out-fields g)))
+                gen (types/generator g)]
+            (name-vars gen names)))
+        :else (u/throw-illegal "Can't combine " g)))
+
 (defn combine
   "Merge the tuples from the subqueries together into a single
   subquery. Doesn't ensure uniqueness of tuples."
-  [& gens]
-  (cascalog.cascading.types/generator
-   (algebra/sum gens)))
+  [& [g & gens]]
+  (let [g (to-tail g)
+        names (get-out-fields g)
+        gens (cons g (map #(to-tail % :fields names) gens))]
+    (types/generator
+     (algebra/sum gens))))
 
 (defn union
   "Merge the tuples from the subqueries together into a single
   subquery and ensure uniqueness of tuples."
   [& gens]
-  (apply ops/unique (apply combine gens)))
+  (ops/unique (apply combine gens)))
 
 (defprotocol ISelectFields
   (select-fields [gen fields]
@@ -222,12 +246,6 @@
   (select-fields [tap fields]
     (-> (types/generator tap)
         (ops/select* fields))))
-
-(defn name-vars [gen vars]
-  (let [vars (collectify vars)]
-    (<- vars
-        (gen :>> vars)
-        (:distinct false))))
 
 ;; ## Defining custom operations
 

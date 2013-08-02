@@ -209,6 +209,8 @@
   (make-node [this children]
              (assoc this :node (first children))))
 
+(def tail? (partial instance? TailStruct))
+
 ;; ExistenceNode is the same as a GeneratorSet, basically.
 (p/defnode ExistenceNode [source output-field]
   zip/TreeNode
@@ -647,7 +649,7 @@
   (let [[options predicates] (opts/extract-options predicates)]
     (validate-predicates! predicates options)
     (let [expanded (mapcat expand-outvars predicates)
-          [nodes expanded] (s/separate #(instance? TailStruct (:op %)) expanded)
+          [nodes expanded] (s/separate #(tail? (:op %)) expanded)
           grouped (->> expanded
                        (map (partial p/build-predicate options))
                        (group-by type))

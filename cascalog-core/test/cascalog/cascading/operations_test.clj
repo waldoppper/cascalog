@@ -149,3 +149,31 @@
           (map* str "y" "q"))
       => (produces [[3 3 9 3 3 "9"]
                     [4 4 16 4 4 "16"]]))))
+
+(comment
+  (defmultibufferop count-sum [seq1 seq2]
+    [[(count seq1) (reduce + (map second seq2))]])
+
+  (defmultibufferop [count-arg [arg]] [seq1 seq2 seq3]
+    [[(count seq1) (count seq2) (count seq3)]
+     [arg arg arg]])
+
+  (deftest test-multigroup
+    (let [val1 [["a" 1] ["b" 2] ["a" 10]]
+          val2 [["b" 6] ["b" 18]
+                ["c" 3] ["c" 4]]
+          gen1 (name-vars val1 ["?key" "?val1"])
+          gen2 (name-vars val2 ["?key" "?val2"])
+          gen3 (name-vars val1 ["?key" "?val2"])]
+      (test?- [["a" 2 0] ["b" 1 24] ["c" 0 7]]
+              (multigroup [?key]
+                          [?count ?sum]
+                          count-sum gen1 gen2))
+
+      (test?- [["a" 2 2 0] ["a" 9 9 9]
+               ["b" 1 1 2] ["b" 9 9 9]
+               ["c" 0 0 2] ["c" 9 9 9]]
+              (multigroup [?key]
+                          [?v1 ?v2 ?v3]
+                          [count-arg [9]]
+                          gen1 gen1 gen2)))))

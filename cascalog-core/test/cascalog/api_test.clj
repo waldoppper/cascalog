@@ -640,27 +640,26 @@
           [[1] [2] [3] [2] [4] [6]]             (combine v1 v3)
           [[1] [2] [3] [3] [4] [5] [2] [4] [6]] (combine v1 v2 v3)))
 
-(comment
-  (deftest test-vector-union-combine
-    (run-union-combine-tests [[1] [2] [3]]
-                             [[3] [4] [5]]
-                             [[2] [4] [6]]))
+(deftest test-vector-union-combine
+  (run-union-combine-tests [[1] [2] [3]]
+                           [[3] [4] [5]]
+                           [[2] [4] [6]]))
 
-  (deftest test-query-union-combine
-    (run-union-combine-tests (<- [?v] ([[1] [2] [3]] ?v))
-                             (<- [?v] ([[3] [4] [5]] ?v))
-                             (<- [?v] ([[2] [4] [6]] ?v))))
+(deftest test-query-union-combine
+  (run-union-combine-tests (<- [?v] ([[1] [2] [3]] ?v))
+                           (<- [?v] ([[3] [4] [5]] ?v))
+                           (<- [?v] ([[2] [4] [6]] ?v))))
 
-  (deftest test-cascading-union-combine
-    (let [v1 [[1] [2] [3]]
-          v2 [[3] [4] [5]]
-          v3 [[2] [4] [6]]
-          e1 []]
-      (run-union-combine-tests v1 v2 v3)
+(deftest test-cascading-union-combine
+  (let [v1 [[1] [2] [3]]
+        v2 [[3] [4] [5]]
+        v3 [[2] [4] [6]]
+        e1 []]
+    (run-union-combine-tests v1 v2 v3)
 
-      "Can't use empty taps inside of a union or combine."
-      (is (thrown? IllegalArgumentException (union e1)))
-      (is (thrown? IllegalArgumentException (combine e1))))))
+    "Can't use empty taps inside of a union or combine."
+    (is (thrown? IllegalArgumentException (union e1)))
+    (is (thrown? IllegalArgumentException (combine e1)))))
 
 (deftest test-keyword-args
   (test?<- [[":onetwo"]]
