@@ -7,14 +7,18 @@
         cascalog.cascading.util)
   (:require [cascalog.cascading.io :as io]
             [cascalog.logic.fn :as serfn]
+            [cascalog.cascading.io :as io]
             [cascalog.cascading.types :refer (generator)]
             [cascalog.logic.algebra :as algebra]))
 
-(defn produces [gen]
-  (chatty-checker
-   [query]
-   (fact
-     (sort (to-memory query)) => (sort gen))))
+(defn produces
+  ([gen] (produces gen :fatal))
+  ([gen log-level]
+     (chatty-checker
+      [query]
+      (fact
+        (io/with-log-level log-level
+          (sort (to-memory query))) => (sort gen)))))
 
 (defn square [x]
   (* x x))

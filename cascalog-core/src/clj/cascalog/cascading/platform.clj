@@ -28,7 +28,13 @@
            [cascalog.logic.predicate RawSubquery]
            [cascalog.cascading.operations IAggregateBy IAggregator]
            [cascalog.logic.def ParallelAggregator ParallelBuffer Prepared]
-           [cascalog.cascading.types ClojureFlow]))
+           [cascalog.cascading.types ClojureFlow]
+           [jcascalog Predicate]))
+
+(extend-protocol p/IRawPredicate
+  Predicate
+  (normalize [p]
+    (p/normalize (into [] (.toRawCascalogPredicate p)))))
 
 ;; ## Allowed Predicates
 

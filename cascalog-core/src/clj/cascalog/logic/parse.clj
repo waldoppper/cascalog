@@ -1,21 +1,19 @@
 (ns cascalog.logic.parse
-  (:require [clojure.string :refer (join)]
-            [clojure.set :refer (difference intersection union subset?)]
+  (:require [clojure.set :refer (difference intersection union subset?)]
             [clojure.zip :as czip]
-            [jackknife.core :as u :refer (throw-illegal throw-runtime)]
+            [jackknife.core :as u]
             [jackknife.seq :as s]
-            [cascalog.logic.def :as d :refer (bufferop? aggregateop?)]
+            [cascalog.logic.def :as d]
             [cascalog.logic.algebra :as algebra]
-            [cascalog.logic.fn :refer (search-for-var)]
             [cascalog.logic.vars :as v]
             [cascalog.logic.zip :as zip]
             [cascalog.logic.predicate :as p]
             [cascalog.logic.predmacro :as pm]
             [cascalog.logic.platform :as platform]
             [cascalog.logic.options :as opts])
-  (:import [jcascalog Predicate PredicateMacro PredicateMacroTemplate]
-           [cascalog.logic.predicate Operation FilterOperation Aggregator
-            Generator GeneratorSet RawPredicate]
+  (:import [cascalog.logic.predicate
+            Operation FilterOperation Aggregator Generator
+            GeneratorSet RawPredicate]
            [clojure.lang IPersistentVector]))
 
 ;; ## Variable Parsing
@@ -105,10 +103,6 @@
     :< :>))
 
 (extend-protocol p/IRawPredicate
-  Predicate
-  (normalize [p]
-    (p/normalize (into [] (.toRawCascalogPredicate p))))
-
   IPersistentVector
   (normalize [[op & rest]]
     (let [op (p/to-operation op)
@@ -137,30 +131,30 @@
                                 (set gen-outvars))
         dups (s/duplicates gen-outvars)]
     (when (not-empty extra-vars)
-      (throw-illegal (str "Ungrounding vars must originate within a generator. "
-                          extra-vars
-                          " violate(s) the rules.")))
+      (u/throw-illegal (str "Ungrounding vars must originate within a generator. "
+                            extra-vars
+                            " violate(s) the rules.")))
     (when (not-empty dups)
-      (throw-illegal (str "Each ungrounding var can only appear once per query."
-                          "The following are duplicated: "
-                          dups)))))
+      (u/throw-illegal (str "Each ungrounding var can only appear once per query."
+                            "The following are duplicated: "
+                            dups)))))
 
 (defn aggregation-assertions! [buffers aggs options]
   (when (and (not-empty aggs)
              (not-empty buffers))
-    (throw-illegal "Cannot use both aggregators and buffers in same grouping"))
+    (u/throw-illegal "Cannot use both aggregators and buffers in same grouping"))
   ;; TODO: Move this into the fluent builder?
   (when (and (empty? aggs) (empty? buffers) (:sort options))
-    (throw-illegal "Cannot specify a sort when there are no aggregators"))
+    (u/throw-illegal "Cannot specify a sort when there are no aggregators"))
   (when (> (count buffers) 1)
-    (throw-illegal "Multiple buffers aren't allowed in the same subquery.")))
+    (u/throw-illegal "Multiple buffers aren't allowed in the same subquery.")))
 
 (defn validate-predicates! [preds opts]
   (let [grouped (group-by (fn [x]
                             (condp #(%1 %2) (:op x)
                               platform/gen? :gens
-                              bufferop? :buffers
-                              aggregateop? :aggs
+                              d/bufferop? :buffers
+                              d/aggregateop? :aggs
                               :ops))
                           preds)]
     (unground-assertions! (:gens grouped)
@@ -449,7 +443,7 @@
    to find optimal joins."
   [tails]
   (or (not-empty (maximal-join tails))
-      (throw-illegal "Unable to join predicates together")))
+      (u/throw-illegal "Unable to join predicates together")))
 
 (defn attempt-join
   "Attempt to reduce the supplied set of tails by joining."
@@ -512,8 +506,8 @@
     (when-let [missing-fields (seq
                                (difference (set required-input)
                                            (set (:available-fields tail))))]
-      (throw-runtime "Can't apply all aggregators. These fields are missing: "
-                     missing-fields))))
+      (u/throw-runtime "Can't apply all aggregators. These fields are missing: "
+                       missing-fields))))
 
 (defn build-agg-tail
   [tail aggs grouping-fields options]
@@ -560,15 +554,15 @@
 (defn validate-projection!
   [remaining-ops needed available]
   (when-not (empty? remaining-ops)
-    (throw-runtime (str "Could not apply all operations: " (pr-str remaining-ops))))
+    (u/throw-runtime (str "Could not apply all operations: " (pr-str remaining-ops))))
   (let [want-set (set needed)
         have-set (set available)]
     (when-not (subset? want-set have-set)
       (let [inter (intersection have-set want-set)
             diff  (difference want-set have-set)]
-        (throw-runtime (str "Only able to build to " (vec inter)
-                            " but need " (vec needed)
-                            ". Missing " (vec diff)))))))
+        (u/throw-runtime (str "Only able to build to " (vec inter)
+                              " but need " (vec needed)
+                              ". Missing " (vec diff)))))))
 
 (defn split-outvar-constants
   "Accepts a sequence of output variables and returns a 2-vector:
@@ -645,36 +639,32 @@
         (assoc :available-fields fields))))
 
 (defn build-rule
-  [{:keys [fields predicates] :as input}]
-  (let [[options predicates] (opts/extract-options predicates)]
-    (validate-predicates! predicates options)
-    (let [expanded (mapcat expand-outvars predicates)
-          [nodes expanded] (s/separate #(tail? (:op %)) expanded)
-          grouped (->> expanded
-                       (map (partial p/build-predicate options))
-                       (group-by type))
-          generators (concat (grouped Generator)
-                             (grouped GeneratorSet))
-          operations (concat (grouped Operation)
-                             (grouped FilterOperation))
-          aggs       (grouped Aggregator)
-          tails      (concat (initial-tails generators operations)
-                             (map (fn [{:keys [op output]}]
-                                    (-> op
-                                        (rename output)
-                                        (assoc :operations operations)))
-                                  nodes))
-          joined     (merge-tails tails)
-          grouping-fields (seq (intersection
-                                (set (:available-fields joined))
-                                (set fields)))
-          agg-tail (build-agg-tail joined aggs grouping-fields options)
-          {:keys [operations available-fields] :as tail} (add-ops-fixed-point agg-tail)]
-      (validate-projection! operations fields available-fields)
-      (project tail fields))))
+  [{:keys [fields predicates options] :as input}]
+  (let [[nodes expanded] (s/separate #(tail? (:op %)) predicates)
+        grouped (->> expanded
+                     (map (partial p/build-predicate options))
+                     (group-by type))
+        generators (concat (grouped Generator)
+                           (grouped GeneratorSet))
+        operations (concat (grouped Operation)
+                           (grouped FilterOperation))
+        aggs       (grouped Aggregator)
+        tails      (concat (initial-tails generators operations)
+                           (map (fn [{:keys [op output]}]
+                                  (-> op
+                                      (rename output)
+                                      (assoc :operations operations)))
+                                nodes))
+        joined     (merge-tails tails)
+        grouping-fields (seq (intersection
+                              (set (:available-fields joined))
+                              (set fields)))
+        agg-tail (build-agg-tail joined aggs grouping-fields options)
+        {:keys [operations available-fields] :as tail} (add-ops-fixed-point agg-tail)]
+    (validate-projection! operations fields available-fields)
+    (project tail fields)))
 
 ;; ## Predicate Parsing
-;;
 ;;
 ;; Before compilation, all predicates are normalized down to clojure
 ;; predicates.
@@ -694,8 +684,11 @@
   (let [output-fields (v/sanitize output-fields)
         raw-predicates (mapcat p/normalize raw-predicates)]
     (if (query-signature? output-fields)
-      (build-rule
-       (p/->RawSubquery output-fields raw-predicates))
+      (let [[options predicates] (opts/extract-options raw-predicates)
+            expanded (mapcat expand-outvars predicates)]
+        (validate-predicates! expanded options)
+        (build-rule
+         (p/->RawSubquery output-fields expanded options)))
       (let [parsed (parse-variables output-fields :<)]
         (pm/build-predmacro (:input parsed)
                             (:output parsed)

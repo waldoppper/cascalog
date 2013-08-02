@@ -39,7 +39,7 @@
 ;; Output of the subquery, the predicates it contains and the options
 ;; in the subquery.
 
-(defrecord RawSubquery [fields predicates])
+(defrecord RawSubquery [fields predicates options])
 
 ;; Printing Methods
 ;;
