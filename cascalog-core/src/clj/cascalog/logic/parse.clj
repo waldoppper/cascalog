@@ -675,8 +675,15 @@
 ;; 2. Normalize all predicates
 ;; 3. Expand predicate macros
 ;;
-;; The result of this is a RawSubquery instance with RawPredicates
-;; only inside.
+;; The result of this is a RawSubquery instance with RawPredicates,
+;; output fields and options.
+
+(defn build-query
+  [output-fields raw-predicates]
+  (let [[options predicates] (opts/extract-options raw-predicates)
+        expanded (mapcat expand-outvars predicates)]
+    (validate-predicates! expanded options)
+    (p/->RawSubquery output-fields expanded options)))
 
 (defn parse-subquery
   "Parses predicates and output fields and returns a proper subquery."
@@ -684,11 +691,8 @@
   (let [output-fields (v/sanitize output-fields)
         raw-predicates (mapcat p/normalize raw-predicates)]
     (if (query-signature? output-fields)
-      (let [[options predicates] (opts/extract-options raw-predicates)
-            expanded (mapcat expand-outvars predicates)]
-        (validate-predicates! expanded options)
-        (build-rule
-         (p/->RawSubquery output-fields expanded options)))
+      (build-rule
+       (build-query output-fields raw-predicates))
       (let [parsed (parse-variables output-fields :<)]
         (pm/build-predmacro (:input parsed)
                             (:output parsed)
