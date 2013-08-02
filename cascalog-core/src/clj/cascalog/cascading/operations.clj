@@ -1,13 +1,13 @@
 (ns cascalog.cascading.operations
   (:require [clojure.tools.macro :refer (name-with-attributes)]
-            [clojure.set :refer (subset? difference intersection)]
+            [clojure.set :as set :refer (subset? difference intersection)]
             [cascalog.logic.fn :as serfn]
             [cascalog.logic.vars :as v]
             [cascalog.logic.algebra :refer (sum)]
             [cascalog.cascading.util :as casc :refer (fields default-output)]
             [cascalog.cascading.tap :as tap]
             [cascalog.cascading.types :refer (generator to-sink)]
-            [jackknife.core :refer (throw-illegal uuid)]
+            [jackknife.core :refer (safe-assert throw-illegal uuid)]
             [jackknife.seq :as s :refer (unweave collectify)])
   (:import [cascading.tuple Fields]
            [cascalog.ops KryoInsert]
@@ -494,38 +494,27 @@
         (rename-pipe final-name))))
 
 ;; ## MultiGroup
-;;
-;; TODO: Get this thing working.
 
-(comment
-  (defn multigroup*
-    [declared-group-vars buffer-out-vars buffer-spec & sqs]
-    (let [[buffer-op hof-args]
-          (if (sequential? buffer-spec) buffer-spec [buffer-spec nil])
-          sq-out-vars (map get-out-fields sqs)
-          group-vars (apply set/intersection (map set sq-out-vars))
-          num-vars (reduce + (map count sq-out-vars))
-          pipes (w/pipes-array (map :pipe sqs))
-          args [declared-group-vars :fn> buffer-out-vars]
-          args (if hof-args (cons hof-args args) args)]
-      (safe-assert (seq declared-group-vars)
-                   "Cannot do global grouping with multigroup")
-      (safe-assert (= (set group-vars)
-                      (set declared-group-vars))
-                   "Declared group vars must be same as intersection of vars of all subqueries")
-      (p/predicate p/generator nil
-                   true
-                   (apply merge (map :sourcemap sqs))
-                   ((apply buffer-op args) pipes num-vars)
-                   (concat declared-group-vars buffer-out-vars)
-                   (apply merge (map :trapmap sqs)))))
-
-  (defmacro multigroup
-    [group-vars out-vars buffer-spec & sqs]
-    `(multigroup* ~(v/sanitize group-vars)
-                  ~(v/sanitize out-vars)
-                  ~buffer-spec
-                  ~@sqs)))
+(defn multigroup
+  "Take a sequence of pairs of [pipe, join-fields]"
+  [pairs declared-group-vars op out-fields]
+  (safe-assert (seq declared-group-vars)
+               "Cannot do global grouping with multigroup")
+  (let [flows (map (comp generator first) pairs)
+        out-vars (map second pairs)
+        group-vars (apply set/intersection (map set out-vars))
+        num-vars (reduce + (map count out-vars))]
+    (safe-assert (= (set group-vars)
+                    (set declared-group-vars))
+                 "Declared group vars must be same as intersection of
+                 vars of all subqueries")
+    (-> flows lift-pipes sum
+        (add-op (fn [pipes]
+                  (MultiGroupBy. pipes
+                                 (casc/fields declared-group-vars)
+                                 num-vars
+                                 (ClojureMultibuffer. (casc/fields out-fields)
+                                                      op)))))))
 
 ;; ## Output Operations
 ;;

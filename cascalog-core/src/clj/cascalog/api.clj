@@ -249,17 +249,21 @@
 
 ;; ## Defining custom operations
 
-(defalias defmapop d/defmapfn
-  "Defines a custom operation that appends new fields to the input tuple.")
+(defalias prepfn d/prepfn)
 
 (defalias mapfn d/mapfn)
+(defalias filterfn d/filterfn)
+(defalias mapcatfn d/mapcatfn)
 (defalias bufferfn d/bufferfn)
+(defalias aggregatefn d/aggregatefn)
+(defalias bufferiterfn d/bufferiterfn)
+
+(defalias defmapop d/defmapfn)
+(defalias deffilterop d/defmapfn)
 (defalias defmapcatop d/defmapcatfn)
 (defalias defbufferop d/defbufferfn)
-;; (defalias defmultibufferop w/defmultibufferop)
 (defalias defbufferiterop d/defbufferiterfn)
 (defalias defaggregateop d/defaggregatefn)
-(defalias deffilterop d/deffilterfn)
 (defalias defparallelagg d/defparallelagg)
 
 ;; ## Miscellaneous helpers

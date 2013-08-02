@@ -113,10 +113,6 @@
   "Defines a filtering operation."
   `bufferiterfn)
 
-(comment
-  "TODO: REMAINING MACROS"
-  (defmacro defmultibufferop [name & body] (defhelper name `multibufferop body)))
-
 ;; ## Deprecated Old Timers
 
 (defmacro defdeprecated [old new]
