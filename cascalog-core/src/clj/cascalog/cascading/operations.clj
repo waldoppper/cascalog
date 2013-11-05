@@ -15,7 +15,7 @@
            [cascading.operation Identity Debug NoOp]
            [cascading.operation.filter Sample]
            [cascading.operation.aggregator First Count Sum Min Max]
-           [cascading.pipe Pipe Each Every GroupBy CoGroup Merge HashJoin]
+           [cascading.pipe Pipe Each Every GroupBy CoGroup Merge HashJoin Checkpoint]
            [cascading.pipe.joiner Joiner InnerJoin LeftJoin RightJoin OuterJoin]
            [cascading.pipe.joiner CascalogJoiner CascalogJoiner$JoinType]
            [cascading.pipe.assembly Rename AggregateBy]
@@ -74,6 +74,10 @@
   ([gen] (rename-pipe gen (uuid)))
   ([gen name]
      (add-op gen #(Pipe. name %))))
+
+(defn checkpoint*
+  []
+  #(Checkpoint. %))
 
 (defop select*
   "Remove all but the supplied fields from the given flow."

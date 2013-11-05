@@ -247,6 +247,23 @@
     (-> (types/generator tap)
         (ops/select* fields))))
 
+(defprotocol ICheckpoint
+  (checkpoint [gen]
+    "Insert a checkpoint after a step in your flow."))
+
+(extend-protocol ICheckpoint
+  TailStruct
+  (checkpoint [sq]
+    (parse/checkpoint sq))
+
+  Subquery
+  (checkpoint [sq]
+    (checkpoint (.getCompiledSubquery sq)))
+
+  Tap
+  (checkpoint [tap] tap))
+    
+
 ;; ## Defining custom operations
 
 (defalias prepfn d/prepfn)

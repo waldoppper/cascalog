@@ -220,6 +220,13 @@
   (make-node [node children]
              (assoc node :source (first children))))
 
+(p/defnode Checkpoint [source]
+  zip/TreeNode
+  (branch? [_] true)
+  (children [_] [source])
+  (make-node [node children]
+             (assoc node :source (first children))))
+
 (p/defnode Projection [source fields]
   zip/TreeNode
   (branch? [_] true)
@@ -630,6 +637,12 @@ This won't work in distributed mode because of the ->Record functions."
     (-> tail
         (chain #(->Rename % fields))
         (assoc :available-fields fields))))
+
+(defn checkpoint [tail]
+  (let [available (:available-fields tail)]
+    (-> tail
+      (chain #(->Checkpoint %))
+      (assoc :available-fields available))))
 
 (defn build-rule
   [{:keys [fields predicates options] :as input}]

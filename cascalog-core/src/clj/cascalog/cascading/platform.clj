@@ -25,7 +25,7 @@
             CascalogAggregatorExecutor ParallelAgg]
            [cascalog.logic.parse TailStruct Projection Application
             FilterApplication Grouping Join ExistenceNode
-            Unique Merge Rename]
+            Unique Merge Rename Checkpoint]
            [cascalog.logic.predicate RawSubquery FilterOperation
             Operation Aggregator]
            [cascalog.cascading.operations IAggregateBy IAggregator
@@ -290,6 +290,11 @@
         (ops/rename* fields)
         (ops/filter-nullable-vars fields)))
 
+  Checkpoint
+  (to-generator [{:keys [source]}]
+    (-> source
+      (ops/checkpoint*)))
+  
   TailStruct
   (to-generator [item]
     (:node item)))
